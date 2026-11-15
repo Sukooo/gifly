@@ -4,6 +4,10 @@ updates:
     directory: /
     schedule:
       interval: monthly
+    # Pull request titles like "chore(deps): bump ureq from 3.5.1 to 3.5.2".
+    commit-message:
+      prefix: chore
+      include: scope
     groups:
       # One pull request for all the small updates, instead of one each.
       minor-and-patch:
@@ -12,6 +16,9 @@ updates:
     directory: /
     schedule:
       interval: monthly
+    commit-message:
+      prefix: ci
+      include: scope
     ignore:
       # It has no releases to follow; the Rust version is set by each job's `toolchain:`.
       - dependency-name: dtolnay/rust-toolchain
