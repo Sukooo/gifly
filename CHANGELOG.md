@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.1.1 (2026-11-15)
 
 - Updated SQLite, and the libraries gifly uses for the hotkey and for downloading GIFs.
 
