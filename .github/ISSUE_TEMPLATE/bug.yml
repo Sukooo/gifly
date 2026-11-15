@@ -1,0 +1,19 @@
+name: Bug report
+description: Something doesn't work as it should
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Diagnostics
+      description: In gifly, open Settings, click **Copy diagnostics**, and paste it here. Tokens and Discord link signatures are removed, but it has the recent log, which can include GIF links. Look it over first.
+      render: text
+    validations:
+      required: true

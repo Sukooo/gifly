@@ -1,0 +1,8 @@
+target/
+publish/
+Releases/
+*.db
+*.db-wal
+*.db-shm
+*.log
+gifly backups/

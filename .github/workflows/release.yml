@@ -1,0 +1,112 @@
+# Builds, packs and publishes a release when a version tag is pushed (scripts/release.ps1 does
+# that). If a run fails after creating the release, delete the release (keep the tag) and re-run.
+
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write # create the release
+  id-token: write # sign the provenance attestation
+  attestations: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  release:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      # The token stays out of .git/config, where dependencies' build scripts could read it.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Check the tag matches Cargo.toml and the changelog
+        id: version
+        run: |
+          $version = (Select-String -Path Cargo.toml -Pattern '^version = "(.+)"' | Select-Object -First 1).Matches.Groups[1].Value
+          if ("v$version" -ne $env:GITHUB_REF_NAME) { throw "Tag $env:GITHUB_REF_NAME doesn't match version $version in Cargo.toml." }
+          $heading = Select-String -Path CHANGELOG.md -Pattern "^## $([regex]::Escape($version))\b" | Select-Object -First 1
+          if (-not $heading) { throw "CHANGELOG.md has no '## $version' section." }
+          if ($heading.Line -match 'unreleased') { throw "CHANGELOG.md still says $version is unreleased." }
+          # This version's section of CHANGELOG.md, without its heading.
+          $notes = ((Get-Content -Raw CHANGELOG.md) -split '(?m)^## ' | Where-Object { $_ -match "^$([regex]::Escape($version))\b" }) -replace '^.*\r?\n', ''
+          Set-Content -Encoding utf8 notes.md $notes.Trim()
+          # vpk must match the velopack crate the exe is built with.
+          $vpk = (Select-String -Path Cargo.lock -Pattern '^name = "velopack"$' -Context 0,1).Context.PostContext[0] -replace '^version = "(.+)"$', '$1'
+          "version=$version" >> $env:GITHUB_OUTPUT
+          "vpk=$vpk" >> $env:GITHUB_OUTPUT
+
+      - uses: dtolnay/rust-toolchain@df2a88e9fe4098bad09cb42c3dec7187f15861fc # master
+        with:
+          toolchain: stable
+      - run: cargo test --locked
+
+      - name: Build
+        run: |
+          # Keep the runner's paths out of the exe. The encoded form separates flags with 0x1F.
+          $env:CARGO_ENCODED_RUSTFLAGS = @(
+            "--remap-path-prefix=$env:USERPROFILE=~"
+            "--remap-path-prefix=$env:GITHUB_WORKSPACE=."
+          ) -join [char]0x1F
+          cargo build --release --locked
+          New-Item -ItemType Directory publish | Out-Null
+          Copy-Item target\release\gifly.exe, LICENSE, THIRD-PARTY-NOTICES.txt publish\
+
+      - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
+        with:
+          dotnet-version: 9.0.x
+      - run: dotnet tool install -g vpk --version ${{ steps.version.outputs.vpk }}
+
+      - name: Pack
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # The previous release lets vpk add a small delta update. There is none the first time.
+          vpk download github --repoUrl "https://github.com/$env:GITHUB_REPOSITORY" --token $env:GITHUB_TOKEN -o Releases
+          if ($LASTEXITCODE) { Write-Warning 'No previous release downloaded. Packing without a delta.' }
+          vpk pack -u gifly -v ${{ steps.version.outputs.version }} -r win-x64 -p publish -e gifly.exe `
+            --packTitle gifly --packAuthors Suko --shortcuts StartMenuRoot --instLocation PerUser `
+            --icon assets\gifly.ico --splashImage assets\splash.png --splashProgressColor '#C47AD6' `
+            --releaseNotes notes.md -o Releases
+          if ($LASTEXITCODE) { throw 'vpk pack failed' }
+
+      # Lets anyone check a download, or the installed %LOCALAPPDATA%\gifly\current\gifly.exe,
+      # was built here from this commit:
+      #   gh attestation verify gifly-win-Setup.exe --repo Sukooo/gifly
+      # GitHub only offers this to public repositories (or Enterprise Cloud).
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        if: ${{ !github.event.repository.private }}
+        with:
+          subject-path: |
+            Releases/gifly-win-Setup.exe
+            Releases/gifly-win-Portable.zip
+            Releases/gifly-${{ steps.version.outputs.version }}-full.nupkg
+            publish/gifly.exe
+
+      - name: Publish
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # A version like 0.2.0-beta.1 goes out as a pre-release, which the updater skips.
+          $pre = @(if ('${{ steps.version.outputs.version }}' -match '-') { '--pre' })
+          vpk upload github --repoUrl "https://github.com/$env:GITHUB_REPOSITORY" --token $env:GITHUB_TOKEN `
+            -o Releases --publish @pre --tag $env:GITHUB_REF_NAME --releaseName "gifly ${{ steps.version.outputs.version }}" `
+            --targetCommitish $env:GITHUB_SHA
+          if ($LASTEXITCODE) { throw 'vpk upload failed' }
+          # The changelog, plus the installer's hash so downloads can be checked.
+          $sha = (Get-FileHash Releases\gifly-win-Setup.exe -Algorithm SHA256).Hash
+          Add-Content -Encoding utf8 notes.md "`n`nSHA256 of ``gifly-win-Setup.exe``: ``$sha``"
+          gh release edit $env:GITHUB_REF_NAME --repo $env:GITHUB_REPOSITORY --notes-file notes.md

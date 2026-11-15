@@ -1,0 +1,65 @@
+[package]
+name = "gifly"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.95"
+description = "A tiny Discord-style GIF picker for the Windows tray"
+license = "MIT"
+repository = "https://github.com/Sukooo/gifly"
+publish = false
+
+[dependencies]
+arboard = "3.7.0"
+base64 = "0.23.1"
+clipboard-master = "4.1.0"
+crossbeam-channel = "0.5.17"
+directories = "6.0.0"
+gif = "0.14.2"
+eframe = { version = "0.37.0", default-features = false, features = ["glow", "default_fonts", "clipboard"] }
+global-hotkey = "0.9.0"
+image = { version = "0.25.10", default-features = false, features = ["gif", "qoi", "png", "jpeg", "webp"] }
+raw-window-handle = "0.6"
+rusqlite = { version = "0.41.1", features = ["bundled", "backup"] }
+rusty-leveldb = "4.0.2"
+tray-icon = "0.26.1"
+ureq = "3.5.1"
+velopack = "1.2.161"
+windows = { version = "0.62.2", features = [
+    "Win32_Foundation",
+    "Win32_Security",
+    "Win32_UI_WindowsAndMessaging",
+    "Win32_UI_Input_KeyboardAndMouse",
+    "Win32_Graphics_Gdi",
+    "Win32_Graphics_Dwm",
+    "Win32_System_SystemInformation",
+    "Win32_System_Threading",
+    "Win32_System_DataExchange",
+    "Win32_System_Memory",
+    "Win32_System_Registry",
+] }
+
+[lints.rust]
+unsafe_op_in_unsafe_fn = "warn"
+unused_qualifications = "warn"
+
+[lints.clippy]
+dbg_macro = "warn"
+undocumented_unsafe_blocks = "warn"
+todo = "warn"
+semicolon_if_nothing_returned = "warn"
+manual_let_else = "warn"
+redundant_closure_for_method_calls = "warn"
+uninlined_format_args = "warn"
+
+[profile.release]
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+strip = true
+
+# Keep image decoding fast even in debug builds.
+[profile.dev.package."*"]
+opt-level = 2
+
+[build-dependencies]
+winresource = "0.1.34"

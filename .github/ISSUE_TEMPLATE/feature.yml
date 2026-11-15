@@ -1,0 +1,11 @@
+name: Feature idea
+description: Something gifly could do
+labels: [enhancement]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What would you like gifly to do?
+      description: And what you do today instead. gifly tries to stay small and fast, so the problem it solves matters more than the exact feature.
+    validations:
+      required: true

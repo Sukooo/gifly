@@ -1,0 +1,17 @@
+version: 2
+updates:
+  - package-ecosystem: cargo
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      # One pull request for all the small updates, instead of one each.
+      minor-and-patch:
+        update-types: [minor, patch]
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    ignore:
+      # It has no releases to follow; the Rust version is set by each job's `toolchain:`.
+      - dependency-name: dtolnay/rust-toolchain

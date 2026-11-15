@@ -1,0 +1,45 @@
+# Checked in CI with `cargo deny check`: known vulnerabilities, licenses, and where crates come from.
+
+[graph]
+targets = ["x86_64-pc-windows-msvc"]
+
+[advisories]
+# Unmaintained crates are reported, but only those gifly depends on directly fail the check.
+unmaintained = "workspace"
+# These are zip extraction bugs with crafted archives (symlinks, Unix permissions, a huge
+# declared size). Only velopack uses zip, on update packages from gifly's own GitHub releases,
+# and no stable velopack ships the fixed zip 9 yet. Drop them once velopack updates.
+ignore = [
+    { id = "RUSTSEC-2026-0367", reason = "zip only opens gifly's own release packages" },
+    { id = "RUSTSEC-2026-0368", reason = "zip only opens gifly's own release packages" },
+    { id = "RUSTSEC-2026-0369", reason = "zip only opens gifly's own release packages" },
+    { id = "RUSTSEC-2026-0429", reason = "zip only opens gifly's own release packages" },
+]
+
+[licenses]
+# The licenses in use today. about.toml, which writes THIRD-PARTY-NOTICES.txt, accepts these too.
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Zlib",
+    "Unicode-3.0",
+    "BSL-1.0",
+    "MPL-2.0",
+    "CDLA-Permissive-2.0",
+    "0BSD",
+    "Unlicense",
+]
+# egui's built-in fonts, credited in THIRD-PARTY-NOTICES.txt like in about.toml.
+exceptions = [{ crate = "epaint_default_fonts", allow = ["OFL-1.1", "Ubuntu-font-1.0"] }]
+
+[bans]
+# Two versions of a crate cost build time and size, but are usually out of our hands.
+multiple-versions = "allow"
+wildcards = "deny"
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
