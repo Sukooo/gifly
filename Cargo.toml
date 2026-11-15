@@ -16,7 +16,7 @@ crossbeam-channel = "0.5.17"
 directories = "6.0.0"
 gif = "0.14.2"
 eframe = { version = "0.37.0", default-features = false, features = ["glow", "default_fonts", "clipboard"] }
-global-hotkey = "0.9.0"
+global-hotkey = "0.10.0"
 image = { version = "0.25.10", default-features = false, features = ["gif", "qoi", "png", "jpeg", "webp"] }
 raw-window-handle = "0.6"
 rusqlite = { version = "0.42.0", features = ["bundled", "backup"] }
