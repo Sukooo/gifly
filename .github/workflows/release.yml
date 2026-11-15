@@ -10,7 +10,7 @@ on:
 permissions:
   contents: write # create the release
   id-token: write # sign the provenance attestation
-  attestations: write
+  attestations: write # store the attestation
 
 concurrency:
   group: release
@@ -46,7 +46,8 @@ jobs:
           # vpk must match the velopack crate the exe is built with.
           $vpk = (Select-String -Path Cargo.lock -Pattern '^name = "velopack"$' -Context 0,1).Context.PostContext[0] -replace '^version = "(.+)"$', '$1'
           "version=$version" >> $env:GITHUB_OUTPUT
-          "vpk=$vpk" >> $env:GITHUB_OUTPUT
+          # Later scripts read these as variables, never pasted into their code.
+          "VERSION=$version", "VPK=$vpk" >> $env:GITHUB_ENV
 
       - uses: dtolnay/rust-toolchain@df2a88e9fe4098bad09cb42c3dec7187f15861fc # master
         with:
@@ -67,7 +68,7 @@ jobs:
       - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
         with:
           dotnet-version: 9.0.x
-      - run: dotnet tool install -g vpk --version ${{ steps.version.outputs.vpk }}
+      - run: dotnet tool install -g vpk --version $env:VPK
 
       - name: Pack
         env:
@@ -76,7 +77,7 @@ jobs:
           # The previous release lets vpk add a small delta update. There is none the first time.
           vpk download github --repoUrl "https://github.com/$env:GITHUB_REPOSITORY" --token $env:GITHUB_TOKEN -o Releases
           if ($LASTEXITCODE) { Write-Warning 'No previous release downloaded. Packing without a delta.' }
-          vpk pack -u gifly -v ${{ steps.version.outputs.version }} -r win-x64 -p publish -e gifly.exe `
+          vpk pack -u gifly -v $env:VERSION -r win-x64 -p publish -e gifly.exe `
             --packTitle gifly --packAuthors Suko --shortcuts StartMenuRoot --instLocation PerUser `
             --icon assets\gifly.ico --splashImage assets\splash.png --splashProgressColor '#C47AD6' `
             --releaseNotes notes.md -o Releases
@@ -101,9 +102,9 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           # A version like 0.2.0-beta.1 goes out as a pre-release, which the updater skips.
-          $pre = @(if ('${{ steps.version.outputs.version }}' -match '-') { '--pre' })
+          $pre = @(if ($env:VERSION -match '-') { '--pre' })
           vpk upload github --repoUrl "https://github.com/$env:GITHUB_REPOSITORY" --token $env:GITHUB_TOKEN `
-            -o Releases --publish @pre --tag $env:GITHUB_REF_NAME --releaseName "gifly ${{ steps.version.outputs.version }}" `
+            -o Releases --publish @pre --tag $env:GITHUB_REF_NAME --releaseName "gifly $env:VERSION" `
             --targetCommitish $env:GITHUB_SHA
           if ($LASTEXITCODE) { throw 'vpk upload failed' }
           # The changelog, plus the installer's hash so downloads can be checked.
