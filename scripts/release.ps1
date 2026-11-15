@@ -26,7 +26,7 @@ $changelog = $changelog -replace '(?m)^## Unreleased', "## $Version ($(Get-Date 
 # Only the first match: the package's own version.
 $toml = ([regex]'(?m)^version = ".+"').Replace([IO.File]::ReadAllText("$PWD\Cargo.toml"), "version = `"$Version`"", 1)
 [IO.File]::WriteAllText("$PWD\Cargo.toml", $toml)
-cargo metadata --offline --format-version 1 | Out-Null # updates gifly's version in Cargo.lock
+cargo metadata --format-version 1 | Out-Null # updates gifly's version in Cargo.lock
 if ($LASTEXITCODE) { throw 'cargo metadata failed' }
 
 git commit --quiet -m "chore(release): $Version" -- CHANGELOG.md Cargo.toml Cargo.lock
