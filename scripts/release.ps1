@@ -29,7 +29,7 @@ $toml = ([regex]'(?m)^version = ".+"').Replace([IO.File]::ReadAllText("$PWD\Carg
 cargo metadata --offline --format-version 1 | Out-Null # updates gifly's version in Cargo.lock
 if ($LASTEXITCODE) { throw 'cargo metadata failed' }
 
-git commit --quiet -m "Release $Version" -- CHANGELOG.md Cargo.toml Cargo.lock
+git commit --quiet -m "chore(release): $Version" -- CHANGELOG.md Cargo.toml Cargo.lock
 git push --quiet origin master
 if ($LASTEXITCODE) { throw 'Pushing master failed' }
 git tag "v$Version"
